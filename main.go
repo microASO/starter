@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/microASO/getter"
+	"github.com/microASO/starter/getter"
 )
 
 func main() {

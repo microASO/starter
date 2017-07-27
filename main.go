@@ -1,12 +1,23 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/microASO/starter/getter"
 )
 
 func main() {
-	fmt.Print("ciao\n")
-	_ = getter.GetFiles()
+	log.Print("Processing Started\n")
+	ch := make(chan []byte, 100)
+
+	for i := 0; i <= 10; i++ {
+		go getter.GetFiles(ch, []byte(strconv.Itoa(i)))
+	}
+
+	for i := 0; i <= 10; i++ {
+		cc, _ := getter.ProvidePublication(<-ch)
+		log.Println("char: ", string(cc))
+	}
+
 }

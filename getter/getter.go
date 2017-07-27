@@ -1,11 +1,11 @@
 package getter
 
 // GetFiles ...
-func GetFiles() error {
-	return nil
+func GetFiles(ch chan []byte, i []byte) {
+	ch <- i
 }
 
 // ProvidePublication ...
-func ProvidePublication() ([]byte, error) {
-	return nil, nil
+func ProvidePublication(test []byte) ([]byte, error) {
+	return test, nil
 }

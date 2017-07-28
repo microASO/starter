@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/microASO/starter/getter"
@@ -31,23 +33,28 @@ func main() {
 	}
 
 	log.Print(response)
-	// TODO: convert response json
-	responseJSON, err := json.Marshal([]byte(response))
-	if err != nil {
-		log.Fatalf("Error converting respose into interface: " + err.Error())
-	}
+
+	responseBYTE := []byte(response)
+	// TODO: avoid interface, define schema!
+	var responseJSON []interface{}
+	json.Unmarshal(responseBYTE, &responseJSON)
 
 	// buffer users
 	ch := make(chan []byte, 100)
 
 	// get tasks/files per user
-	for i := 0; i <= 10; i++ {
+	for i := range responseJSON {
 		go getter.GetFiles(ch, []byte(strconv.Itoa(i)))
 	}
 
 	// send info (TODO: send directly json file)
 	url = "http://localhost:3126/task"
-	data = "data=" + string(responseJSON)
+	data = "data=" + response
+	_, err = http.Post(url, "application/json", bytes.NewBuffer(responseBYTE))
+	if err != nil {
+		log.Printf("Error sending %s \n", response)
+		log.Fatal(err)
+	}
 
 	for i := 0; i <= 10; i++ {
 		cc, _ := getter.ProvidePublication(<-ch)

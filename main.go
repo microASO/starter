@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"strconv"
@@ -31,6 +32,10 @@ func main() {
 
 	log.Print(response)
 	// TODO: convert response json
+	responseJSON, err := json.Marshal([]byte(response))
+	if err != nil {
+		log.Fatalf("Error converting respose into interface: " + err.Error())
+	}
 
 	// buffer users
 	ch := make(chan []byte, 100)
@@ -40,7 +45,10 @@ func main() {
 		go getter.GetFiles(ch, []byte(strconv.Itoa(i)))
 	}
 
-	// send info
+	// send info (TODO: send directly json file)
+	url = "http://localhost:3126/task"
+	data = "data=" + string(responseJSON)
+
 	for i := 0; i <= 10; i++ {
 		cc, _ := getter.ProvidePublication(<-ch)
 		log.Println("char: ", string(cc))

@@ -23,6 +23,7 @@ func main() {
 	data := "subresource=acquiredTransfers&asoworker=asodciangot1&grouping=0"
 
 	// make request
+	// get users to publish
 	response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
 	if err != nil {
 		log.Fatalf("Error retrieving publication with %s", url+"?"+data+"\n"+err.Error())
@@ -31,12 +32,15 @@ func main() {
 	log.Print(response)
 	// TODO: convert response json
 
+	// buffer users
 	ch := make(chan []byte, 100)
 
+	// get tasks/files per user
 	for i := 0; i <= 10; i++ {
 		go getter.GetFiles(ch, []byte(strconv.Itoa(i)))
 	}
 
+	// send info
 	for i := 0; i <= 10; i++ {
 		cc, _ := getter.ProvidePublication(<-ch)
 		log.Println("char: ", string(cc))

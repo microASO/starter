@@ -60,12 +60,12 @@ func SendTask(ch chan []byte, url string, logger *log.Logger) error {
 
 	conn, err := net.Dial("tcp", url)
 	if err != nil {
-		return err
+		logger.Fatal(err)
 	}
 	data := <-ch
 	err = json.NewEncoder(conn).Encode(data)
 	if err != nil {
-		return err
+		logger.Fatal(err)
 	}
 	conn.Close()
 	return nil

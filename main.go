@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
-	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/microASO/starter/getter"
@@ -17,9 +17,18 @@ var (
 )
 
 func main() {
-	log.Print("Processing Started\n")
+	logfile, err := os.OpenFile("mylog", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Println(err)
+	}
+	//defer to close when you're done with it, not because you think it's idiomatic!
+	defer logfile.Close()
+	//logger := log.New(logfile, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+	logger := log.New(os.Stdout, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+
+	logger.Print("Processing Started\n")
 	flag.Parse()
-	log.Printf("Using certfile: %s and keyfile: %s", *certFile, *keyFile)
+	logger.Printf("Using certfile: %s and keyfile: %s", *certFile, *keyFile)
 
 	// define query endpoint
 	url := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"
@@ -27,12 +36,13 @@ func main() {
 
 	// make request
 	// get users to publish
-	response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
+	response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile, logger)
 	if err != nil {
-		log.Fatalf("Error retrieving publication with %s", url+"?"+data+"\n"+err.Error())
+		logger.Printf("Error retrieving publication with %s", url+"?"+data)
+		logger.Fatal(err)
 	}
 
-	log.Print(response)
+	logger.Print(response)
 
 	responseBYTE := []byte(response)
 	// TODO: avoid interface, define schema!
@@ -42,23 +52,11 @@ func main() {
 	// buffer users
 	ch := make(chan []byte, 100)
 
-	// get tasks/files per user
+	// get tasks/files per user and then send
+	url = "127.0.0.1:3126"
 	for i := range responseJSON {
-		go getter.GetFiles(ch, []byte(strconv.Itoa(i)))
+		go getter.GetFiles(ch, []byte(strconv.Itoa(i)), logger)
+		go getter.SendTask(ch, url, logger)
 	}
-
-	// send info (TODO: send directly json file)
-	url = "http://localhost:3126/task"
-	data = "data=" + response
-	_, err = http.Post(url, "application/json", bytes.NewBuffer(responseBYTE))
-	if err != nil {
-		log.Printf("Error sending %s \n", response)
-		log.Fatal(err)
-	}
-
-	for i := 0; i <= 10; i++ {
-		cc, _ := getter.ProvidePublication(<-ch)
-		log.Println("char: ", string(cc))
-	}
-
+	return
 }

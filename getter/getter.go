@@ -2,13 +2,15 @@ package getter
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 )
 
 // GetFiles ...
-func GetFiles(ch chan []byte, i []byte) {
+func GetFiles(ch chan []byte, i []byte, logger *log.Logger) {
 	ch <- i
 }
 
@@ -18,7 +20,7 @@ func ProvidePublication(test []byte) ([]byte, error) {
 }
 
 // RequestHandler ...
-func RequestHandler(url string, uri string, verb string, cert string, key string) (string, error) {
+func RequestHandler(url string, uri string, verb string, cert string, key string, logger *log.Logger) (string, error) {
 
 	// Load client cert
 	certificate, err := tls.LoadX509KeyPair(cert, key)
@@ -51,4 +53,20 @@ func RequestHandler(url string, uri string, verb string, cert string, key string
 	}
 	log.Println(string(data))
 	return string(data), nil
+}
+
+// SendTask ..
+func SendTask(ch chan []byte, url string, logger *log.Logger) error {
+
+	conn, err := net.Dial("tcp", url)
+	if err != nil {
+		return err
+	}
+	data := <-ch
+	err = json.NewEncoder(conn).Encode(data)
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
 }

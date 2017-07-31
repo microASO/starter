@@ -38,7 +38,9 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 	// translate REST response
 	output := make([]map[string]interface{}, len(input.Result))
 	tmpOut := make(map[string]interface{})
-    files   := make([]ResultSchema, len(input.Result))
+	files := make([]ResultSchema, len(input.Result))
+	var user []string
+	var users [][]string
 
 	for i := range input.Result {
 		//logger.Print(len(output))
@@ -49,11 +51,23 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 			tmpOut[input.Desc.Columns[key]] = input.Result[i][key]
 			output[i] = tmpOut
 		}
-        dumpBytes, _ := json.Marshal(output[i])
-        _ = json.Unmarshal(dumpBytes, &files[i])
+		dumpBytes, _ := json.Marshal(output[i])
+		_ = json.Unmarshal(dumpBytes, &files[i])
+		//logger.Print(docs[i].FileID)
+		user = []string{files[i].User, files[i].Group, files[i].Role}
+		if len(users) != 0 {
+			for u := range users {
+				if user[0] != users[u][0] {
+					users = append(users, user)
+				}
+			}
+		} else {
+			users = append(users, user)
+		}
+		logger.Print(users)
 
-        //logger.Print(docs[i].FileID)
 	}
+
 	bulk <- output
 
 }

@@ -6,35 +6,57 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/microASO/starter/getter"
 )
 
-var (
-	certFile = flag.String("cert", "usercert.pem", "A PEM eoncoded certificate file.")
-	keyFile  = flag.String("key", "unencrypted.pem", "A PEM encoded private key file.")
-	logFile  = flag.String("out", "stdout", "Redirect output to this file. Default stdout")
-)
+type configuration struct {
+	Proxy   string `json:"proxy"`
+	LogPath string `json:"logPath"`
+}
 
 func main() {
+	// get configuration
+	var err error
+	absPath, _ := filepath.Abs("config/conf.json")
+	file, err := os.Open(absPath)
+	if err != nil {
+		fmt.Println("error: ", err)
+	}
+	decoder := json.NewDecoder(file)
+	configuration := configuration{}
+	err = decoder.Decode(&configuration)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+
+	// check for command line parameter, but keep the conf.json as the default
+	var (
+		certFile = flag.String("cert", configuration.Proxy, "A PEM eoncoded certificate file.")
+		keyFile  = flag.String("key", configuration.Proxy, "A PEM encoded private key file.")
+		logFile  = flag.String("out", configuration.LogPath, "Redirect output to this file. Default stdout")
+	)
+
 	flag.Parse()
 	var logger *log.Logger
-	var err error
 
 	if *logFile != "stdout" {
 		logfile, err := os.OpenFile(*logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("error: ", err)
 		}
 		defer logfile.Close()
 		logger = log.New(logfile, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+		fmt.Printf("Redirecting output to %s \n", *logFile)
 	} else {
 		logger = log.New(os.Stdout, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 	}
 
+	// Start the process
 	logger.Print("Processing Started\n")
-	logger.Printf("Using certfile: %s and keyfile: %s", *certFile, *keyFile)
+	logger.Printf("Using certfile: %s and keyfile: %s \n", *certFile, *keyFile)
 
 	// define query endpoint
 	url := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"

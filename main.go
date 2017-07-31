@@ -59,6 +59,7 @@ func main() {
 	logger.Print("Processing Started\n")
 	logger.Printf("Using certfile: %s and keyfile: %s \n", *certFile, *keyFile)
 
+	// start publisher server
 	go publisher.PubServer(logger)
 	// main loop
 	for {

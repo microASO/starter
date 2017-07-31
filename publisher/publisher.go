@@ -2,7 +2,6 @@ package publisher
 
 import (
 	"log"
-    "fmt"
 	"net"
 	"net/rpc"
 
@@ -13,31 +12,32 @@ import (
 type Server struct{}
 
 // Publish ...
-func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error {
-//func (myself *Server) Publish(payload *int64, reply *int64) error {
+func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64, logger *log.Logger) error {
+
 	*reply = 0
-    fmt.Println("server task: ",payload[0].Taskname) 
+	logger.Println("server task: ", payload[0].Taskname)
+
 	return nil
 }
 
 // PubServer ...
 func PubServer(logger *log.Logger) {
 	serv := new(Server)
-    rpc.Register(serv)
+	rpc.Register(serv)
 
-    logger.Print("Starting publisher...")
+	logger.Print("Starting publisher...")
 	session, err := net.Listen("tcp", "127.0.0.1:3126")
 	if err != nil {
 		logger.Println("error: ", err)
 		return
 	}
 
-    for {
-        conn, err := session.Accept()
-        if err != nil {
-            continue
-        }
-        go rpc.ServeConn(conn)
-    }
+	for {
+		conn, err := session.Accept()
+		if err != nil {
+			continue
+		}
+		go rpc.ServeConn(conn)
+	}
 
 }

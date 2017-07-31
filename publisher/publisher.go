@@ -2,8 +2,8 @@ package publisher
 
 import (
 	"log"
+    "fmt"
 	"net"
-	"net/http"
 	"net/rpc"
 
 	"github.com/microASO/starter/getter"
@@ -14,21 +14,30 @@ type Server struct{}
 
 // Publish ...
 func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error {
+//func (myself *Server) Publish(payload *int64, reply *int64) error {
 	*reply = 0
+    fmt.Println("server task: ",payload[0].Taskname) 
 	return nil
 }
 
 // PubServer ...
 func PubServer(logger *log.Logger) {
-	rpc.Register(new(Server))
-	rpc.HandleHTTP()
+	serv := new(Server)
+    rpc.Register(serv)
+
+    logger.Print("Starting publisher...")
 	session, err := net.Listen("tcp", "127.0.0.1:3126")
 	if err != nil {
 		logger.Println("error: ", err)
 		return
 	}
-	for {
-		go http.Serve(session, nil)
-	}
+
+    for {
+        conn, err := session.Accept()
+        if err != nil {
+            continue
+        }
+        go rpc.ServeConn(conn)
+    }
 
 }

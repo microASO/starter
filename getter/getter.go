@@ -99,11 +99,12 @@ func SendTask(ch chan []ResultSchema, url string, logger *log.Logger) error {
 
 	conn, err := rpc.Dial("tcp", url)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Fatalln("error: ",err)
 	}
 
 	// TODO: need timeout server side
 	var result int64
+    //payl := 1
 	err = conn.Call("Server.Publish", payload, &result)
 	if err != nil {
 		logger.Fatal(err)

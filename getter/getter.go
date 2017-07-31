@@ -2,10 +2,10 @@ package getter
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
-    "encoding/json"
 )
 
 type description struct {
@@ -18,7 +18,13 @@ type RestOutput struct {
 	Desc   description     `json:"desc"`
 }
 
-//, u'https://cmsweb.cern.ch/dbs/prod/global/DBSReader']],
+// ResultSchema ...
+type ResultSchema struct {
+	FileID   string
+	User     string
+	Taskname string
+}
+
 //u'desc': {u'columns': [u'tm_id', u'tm_username', u'tm_taskname',
 //u'tm_destination', u'tm_destination_lfn', u'tm_source',
 //u'tm_source_lfn', u'tm_filesize', u'tm_publish', u'tm_jobid',
@@ -29,7 +35,10 @@ type RestOutput struct {
 func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *log.Logger) {
 	// translate REST response
 	output := make([]map[string]interface{}, len(input.Result))
-    tmp_out := make(map[string]interface{})
+	tmpOut := make(map[string]interface{})
+
+	//var tasknames []string
+	//var tasks []map[string]interface{}
 
 	for i := range input.Result {
 		logger.Print(len(output))
@@ -37,9 +46,11 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 		for key := range input.Desc.Columns {
 			logger.Print(input.Desc.Columns[key])
 			logger.Print(input.Result[i][key])
-            tmp_out[input.Desc.Columns[key]] = input.Result[i][key]
-            output[i] = tmp_out
+			tmpOut[input.Desc.Columns[key]] = input.Result[i][key]
+			output[i] = tmpOut
 		}
+
+		//output[i]
 	}
 	bulk <- output
 
@@ -48,7 +59,7 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 // SendTask ..
 func SendTask(ch chan []map[string]interface{}, url string, logger *log.Logger) error {
 
-    printit,_ := json.Marshal(<-ch)
+	printit, _ := json.Marshal(<-ch)
 	logger.Print(string(printit))
 
 	/*

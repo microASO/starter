@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-    "time"
+	"time"
 
 	"github.com/microASO/starter/getter"
 )
@@ -70,6 +70,6 @@ func main() {
 	for i := 0; i < 10; i++ {
 		go getter.SendTask(ch, url, logger)
 	}
-    time.Sleep(100000000)
+	time.Sleep(time.Duration(10))
 	return
 }

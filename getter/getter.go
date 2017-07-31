@@ -54,18 +54,21 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 		dumpBytes, _ := json.Marshal(output[i])
 		_ = json.Unmarshal(dumpBytes, &files[i])
 		//logger.Print(docs[i].FileID)
-		user = []string{files[i].User, files[i].Group, files[i].Role}
+
+		// create unique list of users
+		user = []string{files[i].User, files[i].Group, files[i].Role, files[i].Taskname}
+		duplicated := false
 		if len(users) != 0 {
 			for u := range users {
-				if user[0] != users[u][0] {
-					users = append(users, user)
+				if user[0] == users[u][0] {
+					duplicated = true
 				}
 			}
-		} else {
+		}
+		if !duplicated {
 			users = append(users, user)
 		}
 		logger.Print(users)
-
 	}
 
 	bulk <- output

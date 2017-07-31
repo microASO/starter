@@ -52,24 +52,23 @@ func main() {
 		logger.Printf("Error retrieving publication with %s", url+"?"+data)
 		logger.Fatal(err)
 	}
-	logger.Printf("Got publications %s \nI'm sending them to competent people...", response)
+	logger.Print("Got publications, processing tasks...")
 
 	responseBYTE := []byte(response)
-	// TODO: avoid interface, define schema!
 	var responseJSON getter.RestOutput
 	json.Unmarshal(responseBYTE, &responseJSON)
 
 	// buffer users
-	ch := make(chan []map[string]interface{}, 100)
+	ch := make(chan []getter.ResultSchema, 100)
 
 	// buffer for splitting
-	getter.SplitFiles(responseJSON, ch, logger)
+	go getter.SplitFiles(responseJSON, ch, logger)
 
 	// got tasks/files per user, then send
 	url = "127.0.0.1:3126"
-	//for i := 0; i < 10; i++ {
-	go getter.SendTask(ch, url, logger)
-	//}
+	for i := 0; i < 10; i++ {
+	    go getter.SendTask(ch, url, logger)
+	}
 	time.Sleep(time.Second*5)
 	return
 }

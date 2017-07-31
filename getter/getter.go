@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+    "net"
 )
 
 type description struct {
@@ -34,13 +35,14 @@ type ResultSchema struct {
 // u'tm_input_dataset', u'tm_cache_url', u'tm_dbs_url']}}
 
 // SplitFiles orders files by user
-func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *log.Logger) {
+func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) {
 	// translate REST response
 	output := make([]map[string]interface{}, len(input.Result))
 	tmpOut := make(map[string]interface{})
 	files := make([]ResultSchema, len(input.Result))
 	var user []string
 	var users [][]string
+    tasks := make(map[string][]ResultSchema)
 
 	for i := range input.Result {
 		//logger.Print(len(output))
@@ -60,37 +62,51 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 		duplicated := false
 		if len(users) != 0 {
 			for u := range users {
-				if user[0] == users[u][0] {
-					duplicated = true
-				}
+                tmpDuplex := true
+                for i := range user{
+				    if user[i] != users[u][i]  {
+					    tmpDuplex = false
+				    }
+                }
+                if tmpDuplex {
+                    duplicated = true
+                }
 			}
 		}
+
+        // split payload per unique tasks
 		if !duplicated {
 			users = append(users, user)
+            tasks[files[i].Taskname] = make([]ResultSchema, 0)
 		}
-		logger.Print(users)
+        tasks[files[i].Taskname] = append(tasks[files[i].Taskname], files[i])
 	}
 
-	bulk <- output
+    // log active users and delivery payloads
+    logger.Print(users)
+    for k := range tasks {
+	    logger.Printf("delivering payloads for task %s", k)
+	    bulk <- tasks[k]
+    }
 
 }
 
 // SendTask ..
-func SendTask(ch chan []map[string]interface{}, url string, logger *log.Logger) error {
+func SendTask(ch chan []ResultSchema, url string, logger *log.Logger) error {
 
-	//printit, _ := json.Marshal(<-ch)
-	//logger.Print(string(printit))
-	/*
-		conn, err := net.Dial("tcp", url)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		data := <-ch
-		err = json.NewEncoder(conn).Encode(data)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		conn.Close()*/
+	payload := <-ch
+	logger.Printf("Sending payload %s to the publisher", payload[0].Taskname)
+	
+	conn, err := net.Dial("tcp", url)
+	if err != nil {
+	    logger.Fatal(err)
+	}
+	
+	err = json.NewEncoder(conn).Encode(payload)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	conn.Close()
 
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-    "net"
+	"net/rpc"
 )
 
 type description struct {
@@ -42,7 +42,7 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 	files := make([]ResultSchema, len(input.Result))
 	var user []string
 	var users [][]string
-    tasks := make(map[string][]ResultSchema)
+	tasks := make(map[string][]ResultSchema)
 
 	for i := range input.Result {
 		//logger.Print(len(output))
@@ -62,32 +62,32 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 		duplicated := false
 		if len(users) != 0 {
 			for u := range users {
-                tmpDuplex := true
-                for i := range user{
-				    if user[i] != users[u][i]  {
-					    tmpDuplex = false
-				    }
-                }
-                if tmpDuplex {
-                    duplicated = true
-                }
+				tmpDuplex := true
+				for i := range user {
+					if user[i] != users[u][i] {
+						tmpDuplex = false
+					}
+				}
+				if tmpDuplex {
+					duplicated = true
+				}
 			}
 		}
 
-        // split payload per unique tasks
+		// split payload per unique tasks
 		if !duplicated {
 			users = append(users, user)
-            tasks[files[i].Taskname] = make([]ResultSchema, 0)
+			tasks[files[i].Taskname] = make([]ResultSchema, 0)
 		}
-        tasks[files[i].Taskname] = append(tasks[files[i].Taskname], files[i])
+		tasks[files[i].Taskname] = append(tasks[files[i].Taskname], files[i])
 	}
 
-    // log active users and delivery payloads
-    logger.Print(users)
-    for k := range tasks {
-	    logger.Printf("delivering payloads for task %s", k)
-	    bulk <- tasks[k]
-    }
+	// log active users and delivery payloads
+	logger.Print(users)
+	for k := range tasks {
+		logger.Printf("delivering payloads for task %s", k)
+		bulk <- tasks[k]
+	}
 
 }
 
@@ -96,15 +96,19 @@ func SendTask(ch chan []ResultSchema, url string, logger *log.Logger) error {
 
 	payload := <-ch
 	logger.Printf("Sending payload %s to the publisher", payload[0].Taskname)
-	
-	conn, err := net.Dial("tcp", url)
-	if err != nil {
-	    logger.Fatal(err)
-	}
-	
-	err = json.NewEncoder(conn).Encode(payload)
+
+	conn, err := rpc.Dial("tcp", url)
 	if err != nil {
 		logger.Fatal(err)
+	}
+
+	// TODO: need timeout server side
+	var result int64
+	err = conn.Call("Server.Publish", payload, &result)
+	if err != nil {
+		logger.Fatal(err)
+	} else {
+		logger.Printf("Server.Publish result: %d ", result)
 	}
 	conn.Close()
 

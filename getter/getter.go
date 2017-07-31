@@ -20,9 +20,11 @@ type RestOutput struct {
 
 // ResultSchema ...
 type ResultSchema struct {
-	FileID   string
-	User     string
-	Taskname string
+	FileID   string `json:"tm_id"`
+	User     string `json:"tm_username"`
+	Role     string `json:"tm_role"`
+	Group    string `json:"tm_group"`
+	Taskname string `json:"tm_taskname"`
 }
 
 //u'desc': {u'columns': [u'tm_id', u'tm_username', u'tm_taskname',
@@ -36,21 +38,21 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 	// translate REST response
 	output := make([]map[string]interface{}, len(input.Result))
 	tmpOut := make(map[string]interface{})
-
-	//var tasknames []string
-	//var tasks []map[string]interface{}
+    files   := make([]ResultSchema, len(input.Result))
 
 	for i := range input.Result {
-		logger.Print(len(output))
-		logger.Print(i)
+		//logger.Print(len(output))
+		//logger.Print(i)
 		for key := range input.Desc.Columns {
-			logger.Print(input.Desc.Columns[key])
-			logger.Print(input.Result[i][key])
+			//logger.Print(input.Desc.Columns[key])
+			//logger.Print(input.Result[i][key])
 			tmpOut[input.Desc.Columns[key]] = input.Result[i][key]
 			output[i] = tmpOut
 		}
+        dumpBytes, _ := json.Marshal(output[i])
+        _ = json.Unmarshal(dumpBytes, &files[i])
 
-		//output[i]
+        //logger.Print(docs[i].FileID)
 	}
 	bulk <- output
 
@@ -59,9 +61,8 @@ func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *lo
 // SendTask ..
 func SendTask(ch chan []map[string]interface{}, url string, logger *log.Logger) error {
 
-	printit, _ := json.Marshal(<-ch)
-	logger.Print(string(printit))
-
+	//printit, _ := json.Marshal(<-ch)
+	//logger.Print(string(printit))
 	/*
 		conn, err := net.Dial("tcp", url)
 		if err != nil {

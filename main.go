@@ -63,13 +63,13 @@ func main() {
 	ch := make(chan []map[string]interface{}, 100)
 
 	// buffer for splitting
-	go getter.SplitFiles(responseJSON, ch, logger)
+	getter.SplitFiles(responseJSON, ch, logger)
 
 	// got tasks/files per user, then send
 	url = "127.0.0.1:3126"
-	for i := 0; i < 10; i++ {
-		go getter.SendTask(ch, url, logger)
-	}
-	time.Sleep(time.Duration(10))
+	//for i := 0; i < 10; i++ {
+	go getter.SendTask(ch, url, logger)
+	//}
+	time.Sleep(time.Second*5)
 	return
 }

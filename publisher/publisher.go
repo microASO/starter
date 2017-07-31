@@ -1,7 +1,8 @@
 package publisher
 
 import (
-	"log"
+    "fmt"
+    "log"
 	"net"
 	"net/rpc"
 
@@ -12,10 +13,10 @@ import (
 type Server struct{}
 
 // Publish ...
-func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64, logger *log.Logger) error {
+func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error {
 
 	*reply = 0
-	logger.Println("server task: ", payload[0].Taskname)
+	fmt.Println("server task: ", payload[0].Taskname)
 
 	return nil
 }

@@ -104,6 +104,5 @@ func main() {
 			go getter.SendTask(ch, url, logger)
 		}
 		time.Sleep(time.Second * 600)
-		return
 	}
 }

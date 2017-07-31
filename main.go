@@ -14,24 +14,31 @@ import (
 var (
 	certFile = flag.String("cert", "usercert.pem", "A PEM eoncoded certificate file.")
 	keyFile  = flag.String("key", "unencrypted.pem", "A PEM encoded private key file.")
+	logFile  = flag.String("out", "stdout", "Redirect output to this file. Default stdout")
 )
 
 func main() {
-	logfile, err := os.OpenFile("mylog", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		fmt.Println(err)
+	flag.Parse()
+	var logger *log.Logger
+	var err error
+
+	if *logFile != "stdout" {
+		logfile, err := os.OpenFile(*logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer logfile.Close()
+		logger = log.New(logfile, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+	} else {
+		logger = log.New(os.Stdout, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 	}
-	//defer to close when you're done with it, not because you think it's idiomatic!
-	defer logfile.Close()
-	//logger := log.New(logfile, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
-	logger := log.New(os.Stdout, "Starter ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
 	logger.Print("Processing Started\n")
-	flag.Parse()
 	logger.Printf("Using certfile: %s and keyfile: %s", *certFile, *keyFile)
 
 	// define query endpoint
 	url := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"
+	// TODO: url encode parameters later
 	data := "subresource=acquirePublication&asoworker=asoprod1"
 
 	// make request
@@ -67,8 +74,8 @@ func main() {
 	// got tasks/files per user, then send
 	url = "127.0.0.1:3126"
 	for i := 0; i < 10; i++ {
-	    go getter.SendTask(ch, url, logger)
+		go getter.SendTask(ch, url, logger)
 	}
-	time.Sleep(time.Second*5)
+	time.Sleep(time.Second * 5)
 	return
 }

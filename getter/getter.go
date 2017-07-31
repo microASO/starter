@@ -2,25 +2,66 @@ package getter
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 )
 
-// GetFiles ...
-func GetFiles(ch chan []byte, i []byte, logger *log.Logger) {
-	ch <- i
+type description struct {
+	Columns []string `json:"columns"`
 }
 
-// ProvidePublication ...
-func ProvidePublication(test []byte) ([]byte, error) {
-	return test, nil
+// RestOutput translate REST response
+type RestOutput struct {
+	Result [][]interface{} `json:"result"`
+	Desc   description     `json:"desc"`
+}
+
+//, u'https://cmsweb.cern.ch/dbs/prod/global/DBSReader']],
+//u'desc': {u'columns': [u'tm_id', u'tm_username', u'tm_taskname',
+//u'tm_destination', u'tm_destination_lfn', u'tm_source',
+//u'tm_source_lfn', u'tm_filesize', u'tm_publish', u'tm_jobid',
+//u'tm_job_retry_count', u'tm_type', u'tm_aso_worker', u'tm_transfer_retry_count', u'tm_transfer_max_retry_count', u'tm_publication_retry_count', u'tm_publication_max_retry_count', u'tm_rest_host', u'tm_rest_uri', u'tm_transfer_state', u'tm_publication_state', u'tm_transfer_failure_reason', u'tm_publication_failure_reason', u'tm_fts_id', u'tm_fts_instance', u'tm_last_update', u'tm_start_time', u'tm_end_time', u'tm_user_role', u'tm_user_group',
+// u'tm_input_dataset', u'tm_cache_url', u'tm_dbs_url']}}
+
+// SplitFiles orders files by user
+func SplitFiles(input []RestOutput, bulk chan []map[string]interface{}, logger *log.Logger) {
+	// translate REST response
+	output := make([]map[string]interface{}, len(input[0].Result))
+
+	for i := range input[0].Result {
+		for key := range input[0].Desc.Columns {
+			logger.Print(input[0].Desc.Columns[key])
+			logger.Print(input[0].Result[i][key])
+			output[i][input[0].Desc.Columns[i]] = input[0].Result[i][key]
+		}
+	}
+	bulk <- output
+
+}
+
+// SendTask ..
+func SendTask(ch chan []map[string]interface{}, url string, logger *log.Logger) error {
+
+	logger.Print(<-ch)
+
+	/*
+		conn, err := net.Dial("tcp", url)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		data := <-ch
+		err = json.NewEncoder(conn).Encode(data)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		conn.Close()*/
+
+	return nil
 }
 
 // RequestHandler ...
-func RequestHandler(url string, uri string, verb string, cert string, key string, logger *log.Logger) (string, error) {
+func RequestHandler(url string, uri string, verb string, cert string, key string) (string, error) {
 
 	// Load client cert
 	certificate, err := tls.LoadX509KeyPair(cert, key)
@@ -51,22 +92,5 @@ func RequestHandler(url string, uri string, verb string, cert string, key string
 	if err != nil {
 		return "", err
 	}
-	log.Println(string(data))
 	return string(data), nil
-}
-
-// SendTask ..
-func SendTask(ch chan []byte, url string, logger *log.Logger) error {
-
-	conn, err := net.Dial("tcp", url)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	data := <-ch
-	err = json.NewEncoder(conn).Encode(data)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	conn.Close()
-	return nil
 }

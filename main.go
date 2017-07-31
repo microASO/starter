@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/microASO/starter/getter"
 )
@@ -32,30 +31,42 @@ func main() {
 
 	// define query endpoint
 	url := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"
-	data := "subresource=acquiredTransfers&asoworker=asodciangot1&grouping=0"
+	data := "subresource=acquirePublication&asoworker=asoprod1"
 
 	// make request
-	// get users to publish
-	response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile, logger)
+	// acquire users to publish
+	logger.Print("Binding publication to this instance")
+	_, err = getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
 	if err != nil {
 		logger.Printf("Error retrieving publication with %s", url+"?"+data)
 		logger.Fatal(err)
 	}
+	logger.Print("Publications acquired")
 
-	logger.Print(response)
+	// get publications
+	data = "subresource=acquiredPublication&asoworker=asoprod1&grouping=0&limit=1000"
+	log.Print("Getting publications bound to this instance")
+	response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
+	if err != nil {
+		logger.Printf("Error retrieving publication with %s", url+"?"+data)
+		logger.Fatal(err)
+	}
+	logger.Print("Got publications, I'm sending them to competent people...")
 
 	responseBYTE := []byte(response)
 	// TODO: avoid interface, define schema!
-	var responseJSON []interface{}
+	var responseJSON []getter.RestOutput
 	json.Unmarshal(responseBYTE, &responseJSON)
 
 	// buffer users
-	ch := make(chan []byte, 100)
+	ch := make(chan []map[string]interface{}, 100)
 
-	// get tasks/files per user and then send
+	// buffer for splitting
+	go getter.SplitFiles(responseJSON, ch, logger)
+
+	// got tasks/files per user, then send
 	url = "127.0.0.1:3126"
-	for i := range responseJSON {
-		go getter.GetFiles(ch, []byte(strconv.Itoa(i)), logger)
+	for i := 0; i < 10; i++ {
 		go getter.SendTask(ch, url, logger)
 	}
 	return

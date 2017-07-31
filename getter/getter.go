@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+    "encoding/json"
 )
 
 type description struct {
@@ -25,15 +26,19 @@ type RestOutput struct {
 // u'tm_input_dataset', u'tm_cache_url', u'tm_dbs_url']}}
 
 // SplitFiles orders files by user
-func SplitFiles(input []RestOutput, bulk chan []map[string]interface{}, logger *log.Logger) {
+func SplitFiles(input RestOutput, bulk chan []map[string]interface{}, logger *log.Logger) {
 	// translate REST response
-	output := make([]map[string]interface{}, len(input[0].Result))
+	output := make([]map[string]interface{}, len(input.Result))
+    tmp_out := make(map[string]interface{})
 
-	for i := range input[0].Result {
-		for key := range input[0].Desc.Columns {
-			logger.Print(input[0].Desc.Columns[key])
-			logger.Print(input[0].Result[i][key])
-			output[i][input[0].Desc.Columns[i]] = input[0].Result[i][key]
+	for i := range input.Result {
+		logger.Print(len(output))
+		logger.Print(i)
+		for key := range input.Desc.Columns {
+			logger.Print(input.Desc.Columns[key])
+			logger.Print(input.Result[i][key])
+            tmp_out[input.Desc.Columns[key]] = input.Result[i][key]
+            output[i] = tmp_out
 		}
 	}
 	bulk <- output
@@ -43,7 +48,8 @@ func SplitFiles(input []RestOutput, bulk chan []map[string]interface{}, logger *
 // SendTask ..
 func SendTask(ch chan []map[string]interface{}, url string, logger *log.Logger) error {
 
-	logger.Print(<-ch)
+    printit,_ := json.Marshal(<-ch)
+	logger.Print(string(printit))
 
 	/*
 		conn, err := net.Dial("tcp", url)

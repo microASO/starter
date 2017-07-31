@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+    "time"
 
 	"github.com/microASO/starter/getter"
 )
@@ -51,11 +52,11 @@ func main() {
 		logger.Printf("Error retrieving publication with %s", url+"?"+data)
 		logger.Fatal(err)
 	}
-	logger.Print("Got publications, I'm sending them to competent people...")
+	logger.Printf("Got publications %s \nI'm sending them to competent people...", response)
 
 	responseBYTE := []byte(response)
 	// TODO: avoid interface, define schema!
-	var responseJSON []getter.RestOutput
+	var responseJSON getter.RestOutput
 	json.Unmarshal(responseBYTE, &responseJSON)
 
 	// buffer users
@@ -69,5 +70,6 @@ func main() {
 	for i := 0; i < 10; i++ {
 		go getter.SendTask(ch, url, logger)
 	}
+    time.Sleep(100000000)
 	return
 }

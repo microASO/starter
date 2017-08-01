@@ -14,4 +14,4 @@ RUN go install github.com/microASO/starter
 ENTRYPOINT /go/bin/starter
 
 # Document that the service listens on port 8080.
-# EXPOSE 8080
+#EXPOSE 8080

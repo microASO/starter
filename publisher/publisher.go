@@ -44,10 +44,9 @@ func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error
 	// 	get metadata (getPublDescFiles)
 	urlCache := payload[0].CacheUrl
 	// TODO: url encode parameters later
-	data := "taskname=" + payload[0].Taskname + "&filetype=EDM"
+	queryURL := "taskname=" + url.QueryEscape(payload[0].Taskname) + "&filetype=EDM"
 
 	*reply = 0
-	queryURL := url.QueryEscape(data)
 	fmt.Println("server query: ", queryURL)
 	fmt.Println("server cache url: ", urlCache)
 

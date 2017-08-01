@@ -20,19 +20,29 @@ type RestOutput struct {
 }
 
 // ResultSchema ...
-type ResultSchema struct {
-	FileID   string `json:"tm_id"`
-	User     string `json:"tm_username"`
-	Role     string `json:"tm_role"`
-	Group    string `json:"tm_group"`
-	Taskname string `json:"tm_taskname"`
-}
-
 //u'desc': {u'columns': [u'tm_id', u'tm_username', u'tm_taskname',
 //u'tm_destination', u'tm_destination_lfn', u'tm_source',
 //u'tm_source_lfn', u'tm_filesize', u'tm_publish', u'tm_jobid',
 //u'tm_job_retry_count', u'tm_type', u'tm_aso_worker', u'tm_transfer_retry_count', u'tm_transfer_max_retry_count', u'tm_publication_retry_count', u'tm_publication_max_retry_count', u'tm_rest_host', u'tm_rest_uri', u'tm_transfer_state', u'tm_publication_state', u'tm_transfer_failure_reason', u'tm_publication_failure_reason', u'tm_fts_id', u'tm_fts_instance', u'tm_last_update', u'tm_start_time', u'tm_end_time', u'tm_user_role', u'tm_user_group',
 // u'tm_input_dataset', u'tm_cache_url', u'tm_dbs_url']}}
+type ResultSchema struct {
+	FileID   			string `json:"tm_id"`
+	User     			string `json:"tm_username"`
+	Role     			string `json:"tm_role"`
+	Group    			string `json:"tm_group"`
+	Taskname 			string `json:"tm_taskname"`
+	Destination     	string `json:"tm_destination"`
+	DestinationLfn     	string `json:"tm_destination_lfn"`
+	SourceLfn     		string `json:"tm_source_lfn"`
+	JobType     		string `json:"tm_type"`
+	WorkerName     		string `json:"tm_aso_worker"`
+	InputDataset		string `json:"tm_input_dataset"`
+	CacheUrl			string `json:"tm_cache_url"`
+	DBSUrl 				string `json:"tm_dbs_url"`
+	FileSize     		int `json:"tm_filesize"`
+	ToPublish     		int `json:"tm_publish"`
+}
+
 
 // SplitFiles orders files by user
 func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) {
@@ -75,7 +85,7 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 		}
 
 		// split payload per unique tasks
-		if !duplicated {
+		if !duplicated && files[i].ToPublish ==1 {
 			users = append(users, user)
 			tasks[files[i].Taskname] = make([]ResultSchema, 0)
 		}

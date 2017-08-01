@@ -1,8 +1,8 @@
 package publisher
 
 import (
-    "fmt"
-    "log"
+	"fmt"
+	"log"
 	"net"
 	"net/rpc"
 
@@ -34,15 +34,20 @@ type ResultSchema struct {
 
 // Publish ...
 func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error {
+	// get user proxy from proxy cache
 
 	// get task status
 
 	// if status terminal or len>tot go ahead
 
 	// 	get metadata (getPublDescFiles)
+	url := payload[0].CacheUrl
+	// TODO: url encode parameters later
+	data := "taskname=" + payload[0].Taskname + "&filetype=EDM"
 
 	*reply = 0
-	fmt.Println("server task: ", payload[0].Taskname)
+	fmt.Println("server query: ", data)
+	fmt.Println("server cache url: ", url)
 
 	return nil
 }

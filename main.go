@@ -21,7 +21,8 @@ type configuration struct {
 func main() {
 	// get configuration
 	var err error
-	absPath, _ := filepath.Abs("config/conf.json")
+	configPath := "src/github.com/microASO/starter/config/conf.json"
+	absPath, _ := filepath.Abs(configPath)
 	file, err := os.Open(absPath)
 	if err != nil {
 		fmt.Println("error: ", err)

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"net/url"
 
 	"github.com/microASO/starter/getter"
 )
@@ -41,13 +42,14 @@ func (myself *Server) Publish(payload []getter.ResultSchema, reply *int64) error
 	// if status terminal or len>tot go ahead
 
 	// 	get metadata (getPublDescFiles)
-	url := payload[0].CacheUrl
+	urlCache := payload[0].CacheUrl
 	// TODO: url encode parameters later
 	data := "taskname=" + payload[0].Taskname + "&filetype=EDM"
 
 	*reply = 0
-	fmt.Println("server query: ", data)
-	fmt.Println("server cache url: ", url)
+	queryURL := url.QueryEscape(data)
+	fmt.Println("server query: ", queryURL)
+	fmt.Println("server cache url: ", urlCache)
 
 	return nil
 }

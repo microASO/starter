@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/microASO/starter/getter"
@@ -14,13 +13,22 @@ import (
 )
 
 type configuration struct {
+	Proxy   string
+	LogPath string
+}
+
+/* // Get config from file
+type configuration struct {
 	Proxy   string `json:"proxy"`
 	LogPath string `json:"logPath"`
-}
+}*/
 
 func main() {
 	// get configuration
 	var err error
+	config := configuration{Proxy: "proxy", LogPath: "stdout"}
+
+	/*  // Get config from file
 	configPath := "src/github.com/microASO/starter/config/conf.json"
 	absPath, _ := filepath.Abs(configPath)
 	file, err := os.Open(absPath)
@@ -33,12 +41,13 @@ func main() {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
+	*/
 
 	// check for command line parameter, but keep the conf.json as the default
 	var (
-		certFile = flag.String("cert", configuration.Proxy, "A PEM eoncoded certificate file.")
-		keyFile  = flag.String("key", configuration.Proxy, "A PEM encoded private key file.")
-		logFile  = flag.String("out", configuration.LogPath, "Redirect output to this file. Default stdout")
+		certFile = flag.String("cert", config.Proxy, "A PEM eoncoded certificate file.")
+		keyFile  = flag.String("key", config.Proxy, "A PEM encoded private key file.")
+		logFile  = flag.String("out", config.LogPath, "Redirect output to this file. Default stdout")
 	)
 
 	flag.Parse()

@@ -183,6 +183,11 @@ type MetadataResponse struct {
 	Result []string `json:"result"`
 }
 
+// FileMetadata ...
+type FileMetadata struct {
+	JobID string `json:"jobid"`
+}
+
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	payload := args.Payload
@@ -264,6 +269,16 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
 
+	var filemetadata FileMetadata
+	var taskdata []FileMetadata
+
+	for index := range MetadataRes.Result {
+		json.Unmarshal([]byte(MetadataRes.Result[index]), &filemetadata)
+
+		taskdata[index] = filemetadata
+	}
+
+	fmt.Printf("JobIds: %s", taskdata)
 	// TODO: if file!=log and jobid in metadata jobid
 	//["{\"filetype\": \"EDM\",
 	// \"lfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",

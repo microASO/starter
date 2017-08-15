@@ -4,13 +4,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/rpc"
 	"net/url"
-	"os"
 )
 
 // RequestHandler ...
@@ -223,7 +221,8 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	fmt.Printf("Usuer DN: %s \n", sitedbDN)
 
 	// REST GET proxy from proxy cache
-	out, err := os.Create("proxy")
+    /*
+    out, err := os.Create("proxy")
 	if err != nil {
 		fmt.Printf("Error while writing user proxy: %s", err)
 		return err
@@ -247,6 +246,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	userProxy := "proxy"
 	fmt.Printf("Got proxy in %s", userProxy)
+    */
 
 	// get task status
 
@@ -264,13 +264,14 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		fmt.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
 		return err
 	}
-	fmt.Printf("Response: %s", response)
 
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
 
+    //fmt.Println(MetadataRes)
+
 	var filemetadata FileMetadata
-	var taskdata []FileMetadata
+	taskdata := make([]FileMetadata, len(MetadataRes.Result))
 
 	for index := range MetadataRes.Result {
 		json.Unmarshal([]byte(MetadataRes.Result[index]), &filemetadata)
@@ -278,7 +279,9 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		taskdata[index] = filemetadata
 	}
 
-	fmt.Printf("JobIds: %s", taskdata)
+	fmt.Printf("JobIds: %s \n", taskdata)
+    
+
 	// TODO: if file!=log and jobid in metadata jobid
 	//["{\"filetype\": \"EDM\",
 	// \"lfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",

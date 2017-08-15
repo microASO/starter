@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/rpc"
+	"net/url"
 	"os"
 	"time"
 
 	"github.com/microASO/starter/getter"
-	"github.com/microASO/starter/publisher"
 )
 
 type configuration struct {
@@ -22,6 +24,27 @@ type configuration struct {
 	Proxy   string `json:"proxy"`
 	LogPath string `json:"logPath"`
 }*/
+
+func pubServer(logger *log.Logger) {
+	serv := new(getter.Server)
+	rpc.Register(serv)
+
+	logger.Print("Starting publisher...")
+	session, err := net.Listen("tcp", "127.0.0.1:3126/publish")
+	if err != nil {
+		logger.Println("error: ", err)
+		return
+	}
+
+	for {
+		conn, err := session.Accept()
+		if err != nil {
+			continue
+		}
+		go rpc.ServeConn(conn)
+	}
+
+}
 
 func main() {
 	// get configuration
@@ -70,30 +93,36 @@ func main() {
 	logger.Printf("Using certfile: %s and keyfile: %s \n", *certFile, *keyFile)
 
 	// start publisher server
-	go publisher.PubServer(logger)
+	go pubServer(logger)
 	// main loop
 	for {
 		// define query endpoint
-		url := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"
+		reqURL := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filetransfers"
 		// TODO: url encode parameters later
-		data := "subresource=acquirePublication&asoworker=asoprod1"
+		data := url.Values{"subresource": {"acquirePublication"}, "asoworker": {"asoprod1"}}.Encode()
+		//data := "subresource=acquirePublication&asoworker=asoprod1"
 
 		// make request
 		// acquire users to publish
 		logger.Print("Binding publication to this instance")
-		_, err = getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
+		_, err = getter.RequestHandler(reqURL, "?"+data, "GET", *certFile, *keyFile)
 		if err != nil {
-			logger.Printf("Error retrieving publication with %s", url+"?"+data)
+			logger.Printf("Error retrieving publication with %s", reqURL+"?"+data)
 			logger.Fatal(err)
 		}
 		logger.Print("Publications acquired")
 
 		// get publications
-		data = "subresource=acquiredPublication&asoworker=asoprod1&grouping=0&limit=1000"
+		data = url.Values{"subresource": {"acquiredPublication"},
+			"asoworker": {"asoprod1"},
+			"grouping":  {"0"},
+			"limit":     {"1000"}}.Encode()
+		//data = "subresource=acquiredPublication&asoworker=asoprod1&grouping=0&limit=1000"
+
 		log.Print("Getting publications bound to this instance")
-		response, err := getter.RequestHandler(url, "?"+data, "GET", *certFile, *keyFile)
+		response, err := getter.RequestHandler(reqURL, "?"+data, "GET", *certFile, *keyFile)
 		if err != nil {
-			logger.Printf("Error retrieving publication with %s", url+"?"+data)
+			logger.Printf("Error retrieving publication with %s", reqURL+"?"+data)
 			logger.Fatal(err)
 		}
 		logger.Print("Got publications, processing tasks...")
@@ -109,9 +138,9 @@ func main() {
 		go getter.SplitFiles(responseJSON, ch, logger)
 
 		// got tasks/files per user, then send
-		url = "127.0.0.1:3126"
+		reqURL = "127.0.0.1:3126/publish"
 		for i := 0; i < 10; i++ {
-			go getter.SendTask(ch, url, logger)
+			go getter.SendTask(ch, reqURL, logger)
 		}
 		time.Sleep(time.Second * 600)
 	}

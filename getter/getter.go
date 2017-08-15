@@ -178,6 +178,11 @@ type UserDNOutput struct {
 	Result [][]string `json:"result"`
 }
 
+// MetadataResponse ...
+type MetadataResponse struct {
+	Result []string `json:"result"`
+}
+
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	payload := args.Payload
@@ -242,7 +247,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	// if status terminal or len>tot go ahead
 
-	// 	get metadata (getPublDescFiles)
+	// 	get metadata
 	// TODO fix automatic getting url
 	// urlCache := payload[0].CacheURL
 	urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
@@ -255,6 +260,22 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		return err
 	}
 	fmt.Printf("Response: %s", response)
+
+	var MetadataRes MetadataResponse
+	json.Unmarshal([]byte(response), &MetadataRes)
+
+	// TODO: if file!=log and jobid in metadata jobid
+	//["{\"filetype\": \"EDM\",
+	// \"lfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",
+	// \"tmplfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",
+	// \"taskname\": \"170606_105530:erupeika_crab_331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F\",
+	// \"globaltag\": \"None\",
+	// \"state\": \"None\", \"parents\": [], \"filesize\": 590235, \"acquisitionera\": \"null\",
+	// \"location\": \"T2_CH_CERN\", \"runlumi\": {\"1\": [\"131\"]}, \"adler32\": \"cbfb0f67\",
+	// \"publishname\": \"331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451-9959f1bdd5e4617cefb882df46a1d660\",
+	// \"cksum\": 3904673991, \"md5\": \"asda\",
+	// \"outdataset\": \"/MinBias/erupeika-331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451-9959f1bdd5e4617cefb882df46a1d660/USER\",
+	// \"created\": \"[]\", \"pandajobid\": 0, \"swversion\": \"CMSSW_8_0_7_patch2\", \"jobid\": \"131\", \"inevents\": 24, \"tmplocation\": \"T2_BE_IIHE\"}"
 
 	// sendo to publisher
 

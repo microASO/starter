@@ -30,7 +30,7 @@ func pubServer(logger *log.Logger) {
 	rpc.Register(serv)
 
 	logger.Print("Starting publisher...")
-	session, err := net.Listen("tcp", "127.0.0.1:3126/publish")
+	session, err := net.Listen("tcp", "127.0.0.1:8443")
 	if err != nil {
 		logger.Println("error: ", err)
 		return
@@ -138,7 +138,7 @@ func main() {
 		go getter.SplitFiles(responseJSON, ch, logger)
 
 		// got tasks/files per user, then send
-		reqURL = "127.0.0.1:3126/publish"
+		reqURL = "127.0.0.1:8443"
 		for i := 0; i < 10; i++ {
 			go getter.SendTask(ch, reqURL, logger)
 		}

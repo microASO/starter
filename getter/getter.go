@@ -1,6 +1,7 @@
 package getter
 
 import (
+    "fmt"
 	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
@@ -150,7 +151,7 @@ func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 	// TODO: need timeout server side
 	var result int64
 
-	toRPC := RPCArgs{payload, logger}
+	toRPC := RPCArgs{payload}
 	err = conn.Call("Server.Publish", toRPC, &result)
 	if err != nil {
 		logger.Fatal(err)
@@ -167,8 +168,7 @@ type Server struct{}
 
 // RPCArgs ...
 type RPCArgs struct {
-	payload []ResultSchema
-	logger  *log.Logger
+	Payload []ResultSchema
 }
 
 // UserDNOutput ...
@@ -178,8 +178,9 @@ type UserDNOutput struct {
 
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
-	payload := args.payload
-	logger := args.logger
+	payload := args.Payload
+    // TODO: include logger fixing 'log.Logger has no exported fields'
+	//logger := args.Logger
 
 	// get user proxy from proxy cache
 	//  - get dn
@@ -191,13 +192,13 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	data := url.Values{"match": {payload[0].User}}.Encode()
 	//data := "match" + payload[0].User
 
-	logger.Print("Retrieving user DN")
+	fmt.Print("Retrieving user DN \n")
 	response, err := RequestHandler(reqURL, "?"+data, "GET", "proxy", "proxy")
 	if err != nil {
-		logger.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
+		fmt.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
 		return err
 	}
-	logger.Print("User DN retrieved")
+	fmt.Print("User DN retrieved \n")
 
 	var responseDN UserDNOutput
 	json.Unmarshal([]byte(response), &responseDN)
@@ -207,7 +208,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	//["jbalcas", "justas.balcas@cern.ch", "Justas", "Balcas", "/DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=jbalcas/CN=751133/CN=Justas Balcas", null, null, null]
 	//]}
 	sitedbDN := responseDN.Result[0][4]
-	logger.Printf("Usuer DN: %s", sitedbDN)
+	fmt.Printf("Usuer DN: %s \n", sitedbDN)
 	// REST GET proxy from proxy cache
 
 	// get task status
@@ -215,15 +216,24 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// if status terminal or len>tot go ahead
 
 	// 	get metadata (getPublDescFiles)
-	urlCache := payload[0].CacheURL
+    // TODO fix automatic getting url
+	// urlCache := payload[0].CacheURL
+    urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
 	// TODO: url encode parameters later
 	queryURL := "taskname=" + url.QueryEscape(payload[0].Taskname) + "&filetype=EDM"
+
+    response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
+    if err != nil {
+        fmt.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
+        return err
+    }
+    fmt.Printf("Response: %s", response)
 
 	// sendo to publisher
 
 	*reply = 0
-	logger.Println("server query: ", queryURL)
-	logger.Println("server cache url: ", urlCache)
+	fmt.Printf("server query: %s \n", queryURL)
+	fmt.Printf("server cache url: %s \n", urlCache)
 
 	return nil
 }

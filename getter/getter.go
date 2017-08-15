@@ -1,14 +1,16 @@
 package getter
 
 import (
-    "fmt"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/rpc"
 	"net/url"
+	"os"
 )
 
 // RequestHandler ...
@@ -179,7 +181,7 @@ type UserDNOutput struct {
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	payload := args.Payload
-    // TODO: include logger fixing 'log.Logger has no exported fields'
+	// TODO: include logger fixing 'log.Logger has no exported fields'
 	//logger := args.Logger
 
 	// get user proxy from proxy cache
@@ -209,25 +211,50 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	//]}
 	sitedbDN := responseDN.Result[0][4]
 	fmt.Printf("Usuer DN: %s \n", sitedbDN)
+
 	// REST GET proxy from proxy cache
+	out, err := os.Create("proxy")
+	if err != nil {
+		fmt.Printf("Error while writing user proxy: %s", err)
+		return err
+	}
+	defer out.Close()
+
+	data = url.Values{"DN": {sitedbDN}}.Encode()
+
+	resp, err := http.Get("http://127.0.0.1:8888/getproxy?" + data)
+	if err != nil {
+		fmt.Printf("Error contacting proxy cache server: %s", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		fmt.Printf("Error getting user proxy: %s", err)
+		return err
+	}
+
+	userProxy := "proxy"
+	fmt.Printf("Got proxy in %s", userProxy)
 
 	// get task status
 
 	// if status terminal or len>tot go ahead
 
 	// 	get metadata (getPublDescFiles)
-    // TODO fix automatic getting url
+	// TODO fix automatic getting url
 	// urlCache := payload[0].CacheURL
-    urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
+	urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
 	// TODO: url encode parameters later
 	queryURL := "taskname=" + url.QueryEscape(payload[0].Taskname) + "&filetype=EDM"
 
-    response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
-    if err != nil {
-        fmt.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
-        return err
-    }
-    fmt.Printf("Response: %s", response)
+	response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
+	if err != nil {
+		fmt.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
+		return err
+	}
+	fmt.Printf("Response: %s", response)
 
 	// sendo to publisher
 

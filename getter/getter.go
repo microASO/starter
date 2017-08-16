@@ -297,12 +297,12 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		for td := range taskdata {
 			if payload[pl].JobID == taskdata[td].JobID {
 				toPublish[pl] = taskdata[td]
+	            fmt.Printf("JobID: %s \n", toPublish[pl].JobID)
+                break
 			}
 		}
 
 	}
-
-	fmt.Printf("JobIds: %s \n", toPublish)
 
 	/*******************************************************
 	type FileMetadata struct {

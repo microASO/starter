@@ -202,10 +202,8 @@ type FileMetadata struct {
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	var logger *log.Logger
-	logger = log.New(os.Stdout, "Server", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+	logger = log.New(os.Stdout, "Server ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 	payload := args.Payload
-	// TODO: include logger fixing 'log.Logger has no exported fields'
-	//logger := args.Logger
 
 	// get user proxy from proxy cache
 	//  - get dn
@@ -298,18 +296,12 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		for td := range taskdata {
 			if payload[pl].JobID == taskdata[td].JobID {
 				toPublish[pl] = taskdata[td]
-	            fmt.Printf("JobID: %s \n", toPublish[pl].JobID)
+	            logger.Printf("JobID: %s \n", toPublish[pl].JobID)
                 break
 			}
 		}
-
 	}
 
-<<<<<<< Updated upstream
-=======
-	logger.Printf("JobIds: %s \n", toPublish)
-
->>>>>>> Stashed changes
 	/*******************************************************
 	type FileMetadata struct {
 		LFN         string                 `json:"lfn"`
@@ -327,9 +319,10 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	}
 	********************************************************/
 
-	// TODO: if file!=log and jobid in metadata jobid
+	// sendo toPublish to publisher
 
-	// sendo to publisher
+    
+
 
 	*reply = 0
 	logger.Printf("server query: %s \n", queryURL)

@@ -1,6 +1,8 @@
 package getter
 
 import (
+    "os"
+    "io"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -221,8 +223,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	fmt.Printf("Usuer DN: %s \n", sitedbDN)
 
 	// REST GET proxy from proxy cache
-    /*
-    out, err := os.Create("proxy")
+    out, err := os.Create("proxy_user")
 	if err != nil {
 		fmt.Printf("Error while writing user proxy: %s", err)
 		return err
@@ -231,7 +232,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	data = url.Values{"DN": {sitedbDN}}.Encode()
 
-	resp, err := http.Get("http://127.0.0.1:8888/getproxy?" + data)
+	resp, err := http.Get("http://asotest3:5000/getproxy?" + data)
 	if err != nil {
 		fmt.Printf("Error contacting proxy cache server: %s", err)
 		return err
@@ -244,9 +245,8 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		return err
 	}
 
-	userProxy := "proxy"
+	userProxy := "proxy_user"
 	fmt.Printf("Got proxy in %s", userProxy)
-    */
 
 	// get task status
 

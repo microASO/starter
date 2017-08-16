@@ -1,16 +1,16 @@
 package getter
 
 import (
-    "os"
-    "io"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/rpc"
 	"net/url"
+	"os"
 )
 
 // RequestHandler ...
@@ -185,7 +185,18 @@ type MetadataResponse struct {
 
 // FileMetadata ...
 type FileMetadata struct {
-	JobID string `json:"jobid"`
+	JobID       string                 `json:"jobid"`
+	LFN         string                 `json:"lfn"`
+	Taskname    string                 `json:"taskname"`
+	GlobalTag   string                 `json:"globaltag"`
+	Parents     string                 `json:"parents"`
+	Size        string                 `json:"filesize"`
+	PublishName string                 `json:"publishname"`
+	OutDataset  string                 `json:"outdataset"`
+	SWVersion   string                 `json:"swversion"`
+	INEvents    string                 `json:"inevents"`
+	Location    string                 `json:"location"`
+	RunLumi     map[string]interface{} `json:"runlumi"`
 }
 
 // Publish ...
@@ -223,7 +234,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	fmt.Printf("Usuer DN: %s \n", sitedbDN)
 
 	// REST GET proxy from proxy cache
-    out, err := os.Create("proxy_user")
+	out, err := os.Create("proxy_user")
 	if err != nil {
 		fmt.Printf("Error while writing user proxy: %s", err)
 		return err
@@ -268,7 +279,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
 
-    //fmt.Println(MetadataRes)
+	//fmt.Println(MetadataRes)
 
 	var filemetadata FileMetadata
 	taskdata := make([]FileMetadata, len(MetadataRes.Result))
@@ -279,8 +290,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		taskdata[index] = filemetadata
 	}
 
-	fmt.Printf("JobIds: %s \n", taskdata)
-    
+	fmt.Printf("JobIds: %s \n", taskdata[0])
 
 	// TODO: if file!=log and jobid in metadata jobid
 	//["{\"filetype\": \"EDM\",

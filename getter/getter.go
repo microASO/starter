@@ -3,7 +3,6 @@ package getter
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -202,6 +201,8 @@ type FileMetadata struct {
 
 // Publish ...
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
+	var logger *log.Logger
+	logger = log.New(os.Stdout, "Server", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 	payload := args.Payload
 	// TODO: include logger fixing 'log.Logger has no exported fields'
 	//logger := args.Logger
@@ -216,13 +217,13 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	data := url.Values{"match": {payload[0].User}}.Encode()
 	//data := "match" + payload[0].User
 
-	fmt.Print("Retrieving user DN \n")
+	logger.Print("Retrieving user DN \n")
 	response, err := RequestHandler(reqURL, "?"+data, "GET", "proxy", "proxy")
 	if err != nil {
-		fmt.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
+		logger.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
 		return err
 	}
-	fmt.Print("User DN retrieved \n")
+	logger.Print("User DN retrieved \n")
 
 	var responseDN UserDNOutput
 	json.Unmarshal([]byte(response), &responseDN)
@@ -232,12 +233,12 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	//["jbalcas", "justas.balcas@cern.ch", "Justas", "Balcas", "/DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=jbalcas/CN=751133/CN=Justas Balcas", null, null, null]
 	//]}
 	sitedbDN := responseDN.Result[0][4]
-	fmt.Printf("Usuer DN: %s \n", sitedbDN)
+	logger.Printf("Usuer DN: %s \n", sitedbDN)
 
 	// REST GET proxy from proxy cache
 	out, err := os.Create("proxy_user")
 	if err != nil {
-		fmt.Printf("Error while writing user proxy: %s", err)
+		logger.Printf("Error while writing user proxy: %s", err)
 		return err
 	}
 	defer out.Close()
@@ -246,19 +247,19 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	resp, err := http.Get("http://asotest3:5000/getproxy?" + data)
 	if err != nil {
-		fmt.Printf("Error contacting proxy cache server: %s", err)
+		logger.Printf("Error contacting proxy cache server: %s", err)
 		return err
 	}
 	defer resp.Body.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		fmt.Printf("Error getting user proxy: %s", err)
+		logger.Printf("Error getting user proxy: %s", err)
 		return err
 	}
 
 	userProxy := "proxy_user"
-	fmt.Printf("Got proxy in %s", userProxy)
+	logger.Printf("Got proxy in %s", userProxy)
 
 	// get task status
 
@@ -273,14 +274,14 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
 	if err != nil {
-		fmt.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
+		logger.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
 		return err
 	}
 
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
 
-	//fmt.Println(MetadataRes)
+	//logger.Println(MetadataRes)
 
 	var filemetadata FileMetadata
 	taskdata := make([]FileMetadata, len(MetadataRes.Result))
@@ -304,6 +305,11 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	}
 
+<<<<<<< Updated upstream
+=======
+	logger.Printf("JobIds: %s \n", toPublish)
+
+>>>>>>> Stashed changes
 	/*******************************************************
 	type FileMetadata struct {
 		LFN         string                 `json:"lfn"`
@@ -326,8 +332,8 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// sendo to publisher
 
 	*reply = 0
-	fmt.Printf("server query: %s \n", queryURL)
-	fmt.Printf("server cache url: %s \n", urlCache)
+	logger.Printf("server query: %s \n", queryURL)
+	logger.Printf("server cache url: %s \n", urlCache)
 
 	return nil
 }

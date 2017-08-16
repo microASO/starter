@@ -183,20 +183,31 @@ type MetadataResponse struct {
 	Result []string `json:"result"`
 }
 
+//["{\"filetype\": \"EDM\",
+// \"lfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",
+// \"tmplfn\": \"/store/user/erupeika/MinBias/331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451/170606_105530/0000/testfxfx_py_GEN_131.root\",
+// \"taskname\": \"170606_105530:erupeika_crab_331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F\",
+// \"globaltag\": \"None\",
+// \"state\": \"None\", \"parents\": [], \"filesize\": 590235, \"acquisitionera\": \"null\",
+// \"location\": \"T2_CH_CERN\", \"runlumi\": {\"1\": [\"131\"]}, \"adler32\": \"cbfb0f67\",
+// \"publishname\": \"331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451-9959f1bdd5e4617cefb882df46a1d660\",
+// \"cksum\": 3904673991, \"md5\": \"asda\",
+// \"outdataset\": \"/MinBias/erupeika-331706rc1-4-PrivateMC_for_LHE-L-T_O-T_P-T_IL-F-1496746451-9959f1bdd5e4617cefb882df46a1d660/USER\",
+// \"created\": \"[]\", \"pandajobid\": 0, \"swversion\": \"CMSSW_8_0_7_patch2\", \"jobid\": \"131\", \"inevents\": 24, \"tmplocation\": \"T2_BE_IIHE\"}"
 // FileMetadata ...
 type FileMetadata struct {
-	JobID       string                 `json:"jobid"`
 	LFN         string                 `json:"lfn"`
 	Taskname    string                 `json:"taskname"`
 	GlobalTag   string                 `json:"globaltag"`
-	Parents     string                 `json:"parents"`
-	Size        string                 `json:"filesize"`
+	Parents     []string               `json:"parents"`
+	Size        int32                  `json:"filesize"`
+	Location    string                 `json:"location"`
+	RunLumi     map[string]interface{} `json:"runlumi"`
 	PublishName string                 `json:"publishname"`
 	OutDataset  string                 `json:"outdataset"`
 	SWVersion   string                 `json:"swversion"`
-	INEvents    string                 `json:"inevents"`
-	Location    string                 `json:"location"`
-	RunLumi     map[string]interface{} `json:"runlumi"`
+	JobID       string                 `json:"jobid"`
+	INEvents    int32                  `json:"inevents"`
 }
 
 // Publish ...
@@ -290,7 +301,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		taskdata[index] = filemetadata
 	}
 
-	fmt.Printf("JobIds: %s \n", taskdata[0])
+	//fmt.Printf("JobIds: %s \n", taskdata[0])
 
 	// TODO: if file!=log and jobid in metadata jobid
 	//["{\"filetype\": \"EDM\",

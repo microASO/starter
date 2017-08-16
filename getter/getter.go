@@ -1,9 +1,9 @@
 package getter
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -139,6 +139,11 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 
 }
 
+// RPCArgs ...
+type RPCArgs struct {
+	Payload []ResultSchema
+}
+
 // SendTask ..
 func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 
@@ -167,11 +172,6 @@ func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 
 // Server ...
 type Server struct{}
-
-// RPCArgs ...
-type RPCArgs struct {
-	Payload []ResultSchema
-}
 
 // UserDNOutput ...
 type UserDNOutput struct {
@@ -211,9 +211,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	// get user DN from
 	reqURL := "https://cmsweb.cern.ch/sitedb/data/prod/people"
-	//v := url.Values{}
 	data := url.Values{"match": {payload[0].User}}.Encode()
-	//data := "match" + payload[0].User
 
 	logger.Print("Retrieving user DN \n")
 	response, err := RequestHandler(reqURL, "?"+data, "GET", "proxy", "proxy")
@@ -234,6 +232,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	logger.Printf("Usuer DN: %s \n", sitedbDN)
 
 	// REST GET proxy from proxy cache
+	/* MOVED to PUBLISHER
 	out, err := os.Create("proxy_user")
 	if err != nil {
 		logger.Printf("Error while writing user proxy: %s", err)
@@ -258,6 +257,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	userProxy := "proxy_user"
 	logger.Printf("Got proxy in %s", userProxy)
+	*/
 
 	// get task status
 
@@ -267,8 +267,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// TODO fix automatic getting url
 	// urlCache := payload[0].CacheURL
 	urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
-	// TODO: url encode parameters later
-	queryURL := "taskname=" + url.QueryEscape(payload[0].Taskname) + "&filetype=EDM"
+	queryURL := url.Values{"taskname": {payload[0].Taskname}, "filetype": {"EDM"}}.Encode()
 
 	response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
 	if err != nil {
@@ -276,15 +275,16 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		return err
 	}
 
+	// get result from response
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
 
-	//logger.Println(MetadataRes)
-
+	// decode results and save what needed
 	var filemetadata FileMetadata
 	taskdata := make([]FileMetadata, len(MetadataRes.Result))
 	toPublish := make([]FileMetadata, len(payload))
 
+	// decode json
 	for index := range MetadataRes.Result {
 		json.Unmarshal([]byte(MetadataRes.Result[index]), &filemetadata)
 
@@ -292,15 +292,34 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
 	}
 
+	// save metadata for correct jobIDs only
 	for pl := range payload {
 		for td := range taskdata {
 			if payload[pl].JobID == taskdata[td].JobID {
 				toPublish[pl] = taskdata[td]
-	            logger.Printf("JobID: %s \n", toPublish[pl].JobID)
-                break
+				logger.Printf("JobID: %s \n", toPublish[pl].JobID)
+				break
 			}
 		}
 	}
+
+	// dump json content
+	publishPayload, err := json.Marshal(toPublish)
+	if err != nil {
+		logger.Printf("Error dumping metadata content: %s", err)
+		return err
+	}
+
+	// send to publisher server
+	data = url.Values{"DN": {sitedbDN}}.Encode()
+	resp, err := http.Post("http://asotest3:8443/dbspublish?"+data, "application/json", bytes.NewBuffer(publishPayload))
+	if err != nil {
+		logger.Printf("Error contacting publisher server: %s", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	logger.Print("Payload published")
 
 	/*******************************************************
 	type FileMetadata struct {
@@ -320,9 +339,6 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	********************************************************/
 
 	// sendo toPublish to publisher
-
-    
-
 
 	*reply = 0
 	logger.Printf("server query: %s \n", queryURL)

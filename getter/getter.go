@@ -142,6 +142,7 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 // RPCArgs ...
 type RPCArgs struct {
 	Payload []ResultSchema
+	User    string
 }
 
 // SendTask ..
@@ -158,7 +159,7 @@ func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 	// TODO: need timeout server side
 	var result int64
 
-	toRPC := RPCArgs{payload}
+	toRPC := RPCArgs{payload, payload[0].User}
 	err = conn.Call("Server.Publish", toRPC, &result)
 	if err != nil {
 		logger.Fatal(err)
@@ -204,6 +205,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	var logger *log.Logger
 	logger = log.New(os.Stdout, "Server ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 	payload := args.Payload
+	username := args.User
 
 	// get user proxy from proxy cache
 	//  - get dn
@@ -311,7 +313,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	}
 
 	// send to publisher server
-	data = url.Values{"DN": {sitedbDN}}.Encode()
+	data = url.Values{"DN": {sitedbDN}, "User": {username}}.Encode()
 	resp, err := http.Post("http://asotest3:8443/dbspublish?"+data, "application/json", bytes.NewBuffer(publishPayload))
 	if err != nil {
 		logger.Printf("Error contacting publisher server: %s", err)

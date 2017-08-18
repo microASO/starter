@@ -198,6 +198,10 @@ type FileMetadata struct {
 	SWVersion   string                 `json:"swversion"`
 	JobID       string                 `json:"jobid"`
 	INEvents    int32                  `json:"inevents"`
+    AcquisitionEra string              `json:"acquisitionera"` 
+    Cksum       int32                  `json:"cksum"`
+    Adler32     string                 `json:"adler32"`
+    Md5         string                 `json:"md5"`
 }
 
 // Publish ...
@@ -305,23 +309,40 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		}
 	}
 
+    var publishPayload []byte
 	// dump json content
-	publishPayload, err := json.Marshal(toPublish)
-	if err != nil {
-		logger.Printf("Error dumping metadata content: %s", err)
-		return err
-	}
+    if toPublish[0].Taskname != "" {
+        publishPayload, err = json.Marshal(toPublish)
+        if err != nil {
+	        *reply = 1 
+            logger.Printf("Error dumping metadata content: %s", err)
+            return err
+        }
+    } else {
+        logger.Print("No ready filemetadata yet")
+	    *reply = 1 
+        return nil
+    }
 
-	// send to publisher server
-	data = url.Values{"DN": {sitedbDN}, "User": {username}}.Encode()
+	// send to publisher serve
+	data = url.Values{"DN": {sitedbDN}, "User": {username}, "Destination": {payload[0].Destination}}.Encode()
+    //logger.Printf("SENDING DATA: %s", publishPayload)
 	resp, err := http.Post("http://asotest3:8443/dbspublish?"+data, "application/json", bytes.NewBuffer(publishPayload))
 	if err != nil {
 		logger.Printf("Error contacting publisher server: %s", err)
+	    *reply = 1 
 		return err
 	}
 	defer resp.Body.Close()
 
-	logger.Print("Payload published")
+    if resp.StatusCode == 200 { // OK
+        bodyBytes, _ := ioutil.ReadAll(resp.Body)
+        body := string(bodyBytes)
+        logger.Printf("Payload published %s", string(body))
+    }else{
+	    *reply = int64(resp.StatusCode) 
+    }
+
 
 	/*******************************************************
 	type FileMetadata struct {
@@ -337,12 +358,13 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		SWVersion   string                 `json:"swversion"`
 		JobID       string                 `json:"jobid"`
 		INEvents    int32                  `json:"inevents"`
+        AcquisitionEra string              `json:"acquisitionera"` 
+        Cksum       string                 `json:"cksum"`
+        Adler32     string                 `json:"adler32"`
+        Md5         string                 `json:"md5"`
 	}
 	********************************************************/
 
-	// sendo toPublish to publisher
-
-	*reply = 0
 	logger.Printf("server query: %s \n", queryURL)
 	logger.Printf("server cache url: %s \n", urlCache)
 

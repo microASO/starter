@@ -10,6 +10,8 @@ import (
 	"net/rpc"
 	"net/url"
 	"os"
+        "io"
+        "mime/multipart"
 )
 
 // RequestHandler ...
@@ -30,6 +32,7 @@ func RequestHandler(reqURL string, uri string, verb string, cert string, key str
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
 	client := &http.Client{Transport: transport}
 
+        if verb == "GET" {
 	req, _ := http.NewRequest(verb, reqURL+uri, nil)
 
 	req.Header.Set("Accept", "application/json")
@@ -38,13 +41,32 @@ func RequestHandler(reqURL string, uri string, verb string, cert string, key str
 		return "", err
 	}
 	defer resp.Body.Close()
-
 	// Dump response
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
+        } else {
+
+        req, _ := http.NewRequest("POST", reqURL,  bytes.NewBufferString(uri))
+        req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	// Dump response
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+
+        }
+
 }
 
 type description struct {
@@ -103,7 +125,6 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 		}
 		dumpBytes, _ := json.Marshal(output[i])
 		_ = json.Unmarshal(dumpBytes, &files[i])
-		//logger.Print(docs[i].FileID)
 
 		// create unique list of users
 		user = []string{files[i].User, files[i].Group, files[i].Role, files[i].Taskname}
@@ -133,7 +154,7 @@ func SplitFiles(input RestOutput, bulk chan []ResultSchema, logger *log.Logger) 
 	// log active users and delivery payloads
 	logger.Print(users)
 	for k := range tasks {
-		logger.Printf("delivering payloads for task %s", k)
+		// logger.Printf("delivering payloads for task %s", k)
 		bulk <- tasks[k]
 	}
 
@@ -149,7 +170,7 @@ type RPCArgs struct {
 func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 
 	payload := <-ch
-	logger.Printf("Sending payload %s to the publisher", payload[0].Taskname)
+	logger.Printf("Sending payload %s to the publisher %s", payload[0].Taskname, reqURL)
 
 	conn, err := rpc.Dial("tcp", reqURL)
 	if err != nil {
@@ -160,9 +181,10 @@ func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 	var result int64
 
 	toRPC := RPCArgs{payload, payload[0].User}
+        
 	err = conn.Call("Server.Publish", toRPC, &result)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Printf("Publish component error: %s", err)
 	} else {
 		logger.Printf("Server.Publish result: %d ", result)
 	}
@@ -208,6 +230,7 @@ type FileMetadata struct {
 func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	var logger *log.Logger
 	logger = log.New(os.Stdout, "Server ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+	logger.Print("Retrieving user DN \n")
 	payload := args.Payload
 	username := args.User
 
@@ -220,7 +243,8 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	data := url.Values{"match": {payload[0].User}}.Encode()
 
 	logger.Print("Retrieving user DN \n")
-	response, err := RequestHandler(reqURL, "?"+data, "GET", "proxy", "proxy")
+        proxy := "/data/srv/asyncstageout/state/asyncstageout/creds/OpsProxy"
+	response, err := RequestHandler(reqURL, "?"+data, "GET", proxy, proxy)
 	if err != nil {
 		logger.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
 		return err
@@ -237,34 +261,6 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	sitedbDN := responseDN.Result[0][4]
 	logger.Printf("Usuer DN: %s \n", sitedbDN)
 
-	// REST GET proxy from proxy cache
-	/* MOVED to PUBLISHER
-	out, err := os.Create("proxy_user")
-	if err != nil {
-		logger.Printf("Error while writing user proxy: %s", err)
-		return err
-	}
-	defer out.Close()
-
-	data = url.Values{"DN": {sitedbDN}}.Encode()
-
-	resp, err := http.Get("http://asotest3:5000/getproxy?" + data)
-	if err != nil {
-		logger.Printf("Error contacting proxy cache server: %s", err)
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		logger.Printf("Error getting user proxy: %s", err)
-		return err
-	}
-
-	userProxy := "proxy_user"
-	logger.Printf("Got proxy in %s", userProxy)
-	*/
-
 	// get task status
 
 	// if status terminal or len>tot go ahead
@@ -272,10 +268,11 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// 	get metadata
 	// TODO fix automatic getting url
 	// urlCache := payload[0].CacheURL
-	urlCache := "https://cmsweb-testbed.cern.ch/crabserver/preprod/filemetadata"
+        // logger.Printf("test: %s", payload[0].Taskname)
+	urlCache := "https://vocms035.cern.ch/crabserver/dev/filemetadata"
 	queryURL := url.Values{"taskname": {payload[0].Taskname}, "filetype": {"EDM"}}.Encode()
 
-	response, err = RequestHandler(urlCache, "?"+queryURL, "GET", "proxy", "proxy")
+	response, err = RequestHandler(urlCache, "?"+queryURL, "GET", proxy, proxy)
 	if err != nil {
 		logger.Printf("Error retrieving file metadata with %s", urlCache+"?"+queryURL)
 		return err
@@ -284,6 +281,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// get result from response
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
+
 
 	// decode results and save what needed
 	var filemetadata FileMetadata
@@ -301,9 +299,11 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// save metadata for correct jobIDs only
 	for pl := range payload {
 		for td := range taskdata {
+                        
+                        //logger.Printf("test: %s - %s", payload[pl].JobID, taskdata[td].JobID)
 			if payload[pl].JobID == taskdata[td].JobID {
 				toPublish[pl] = taskdata[td]
-				logger.Printf("JobID: %s \n", toPublish[pl].JobID)
+				//logger.Printf("JobID: %s \n", toPublish[pl].JobID)
 				break
 			}
 		}
@@ -311,6 +311,8 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 
     var publishPayload []byte
 	// dump json content
+    //logger.Printf("test: %s", toPublish[0].Taskname)
+
     if toPublish[0].Taskname != "" {
         publishPayload, err = json.Marshal(toPublish)
         if err != nil {
@@ -325,10 +327,26 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
     }
 
 	// send to publisher serve
-	data = url.Values{"DN": {sitedbDN}, "User": {username}, "Destination": {payload[0].Destination}}.Encode()
-    //logger.Printf("SENDING DATA: %s", publishPayload)
-	resp, err := http.Post("http://asotest3:8443/dbspublish?"+data, "application/json", bytes.NewBuffer(publishPayload))
+        body_buf := bytes.NewBufferString("")
+        body_writer := multipart.NewWriter(body_buf)
+        //boundary := body_writer.Boundary()
+        content_type := body_writer.FormDataContentType()
+
+        body_writer.WriteField("DN", sitedbDN)
+        body_writer.WriteField("User", username)
+        body_writer.WriteField("Destination", payload[0].Destination)
+
+        filename := "foobar.json"
+        file_writer, err := body_writer.CreateFormFile("Payload", filename)
+        if nil != err {
+           panic(err.Error())
+        }
+        io.Copy(file_writer, bytes.NewBuffer(publishPayload))
+
+        body_writer.Close()
+        resp, err := http.Post("http://0.0.0.0:8888/dbspublish", content_type, body_buf)
 	if err != nil {
+		logger.Printf("Error contacting publisher server: %s", resp)
 		logger.Printf("Error contacting publisher server: %s", err)
 	    *reply = 1 
 		return err
@@ -341,6 +359,10 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
         logger.Printf("Payload published %s", string(body))
     }else{
 	    *reply = int64(resp.StatusCode) 
+        bodyBytes, _ := ioutil.ReadAll(resp.Body)
+        body := string(bodyBytes)
+
+           logger.Printf("error %s", string(body))
     }
 
 

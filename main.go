@@ -124,8 +124,8 @@ func main() {
 			logger.Printf("Error retrieving publication with %s", reqURL+"?"+data)
 			logger.Fatal(err)
 		}
-		logger.Print("Got publications, processing tasks... %s ? %s ", reqURL, data)
-		logger.Print("Got publications, processing tasks... %s", response)
+		//logger.Print("Got publications, processing tasks... %s ? %s ", reqURL, data)
+		//logger.Print("Got publications, processing tasks... %s", response)
 
 		responseBYTE := []byte(response)
 		var responseJSON getter.RestOutput

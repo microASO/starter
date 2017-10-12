@@ -10,8 +10,7 @@ import (
 	"net/rpc"
 	"net/url"
 	"os"
-        "io"
-        "mime/multipart"
+	"os/exec"
 )
 
 // RequestHandler ...
@@ -32,41 +31,40 @@ func RequestHandler(reqURL string, uri string, verb string, cert string, key str
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
 	client := &http.Client{Transport: transport}
 
-        if verb == "GET" {
-	req, _ := http.NewRequest(verb, reqURL+uri, nil)
+	if verb == "GET" {
+		req, _ := http.NewRequest(verb, reqURL+uri, nil)
 
-	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
+		req.Header.Set("Accept", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		// Dump response
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
 	}
-	defer resp.Body.Close()
-	// Dump response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+	if verb == "POST" {
+		req, _ := http.NewRequest("POST", reqURL, bytes.NewBufferString(uri))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		// Dump response
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
 	}
-	return string(data), nil
-        } else {
-
-        req, _ := http.NewRequest("POST", reqURL,  bytes.NewBufferString(uri))
-        req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	// Dump response
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-
-        }
-
+	return "", nil
 }
 
 type description struct {
@@ -181,7 +179,7 @@ func SendTask(ch chan []ResultSchema, reqURL string, logger *log.Logger) error {
 	var result int64
 
 	toRPC := RPCArgs{payload, payload[0].User}
-        
+
 	err = conn.Call("Server.Publish", toRPC, &result)
 	if err != nil {
 		logger.Printf("Publish component error: %s", err)
@@ -208,22 +206,26 @@ type MetadataResponse struct {
 
 // FileMetadata ...
 type FileMetadata struct {
-	LFN         string                 `json:"lfn"`
-	Taskname    string                 `json:"taskname"`
-	GlobalTag   string                 `json:"globaltag"`
-	Parents     []string               `json:"parents"`
-	Size        int32                  `json:"filesize"`
-	Location    string                 `json:"location"`
-	RunLumi     map[string]interface{} `json:"runlumi"`
-	PublishName string                 `json:"publishname"`
-	OutDataset  string                 `json:"outdataset"`
-	SWVersion   string                 `json:"swversion"`
-	JobID       string                 `json:"jobid"`
-	INEvents    int32                  `json:"inevents"`
-    AcquisitionEra string              `json:"acquisitionera"` 
-    Cksum       int32                  `json:"cksum"`
-    Adler32     string                 `json:"adler32"`
-    Md5         string                 `json:"md5"`
+	User           string
+	UserDN         string
+	Destination    string
+	SourceLFN      string
+	LFN            string                 `json:"lfn"`
+	Taskname       string                 `json:"taskname"`
+	GlobalTag      string                 `json:"globaltag"`
+	Parents        []string               `json:"parents"`
+	Size           int32                  `json:"filesize"`
+	Location       string                 `json:"location"`
+	RunLumi        map[string]interface{} `json:"runlumi"`
+	PublishName    string                 `json:"publishname"`
+	OutDataset     string                 `json:"outdataset"`
+	SWVersion      string                 `json:"swversion"`
+	JobID          string                 `json:"jobid"`
+	INEvents       int32                  `json:"inevents"`
+	AcquisitionEra string                 `json:"acquisitionera"`
+	Cksum          int32                  `json:"cksum"`
+	Adler32        string                 `json:"adler32"`
+	Md5            string                 `json:"md5"`
 }
 
 // Publish ...
@@ -243,7 +245,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	data := url.Values{"match": {payload[0].User}}.Encode()
 
 	logger.Print("Retrieving user DN \n")
-        proxy := "/data/srv/asyncstageout/state/asyncstageout/creds/OpsProxy"
+	proxy := "/data/srv/asyncstageout/state/asyncstageout/creds/OpsProxy"
 	response, err := RequestHandler(reqURL, "?"+data, "GET", proxy, proxy)
 	if err != nil {
 		logger.Printf("Error retrieving user DN with %s", reqURL+"?"+data)
@@ -268,7 +270,7 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// 	get metadata
 	// TODO fix automatic getting url
 	// urlCache := payload[0].CacheURL
-        // logger.Printf("test: %s", payload[0].Taskname)
+	// logger.Printf("test: %s", payload[0].Taskname)
 	urlCache := "https://vocms035.cern.ch/crabserver/dev/filemetadata"
 	queryURL := url.Values{"taskname": {payload[0].Taskname}, "filetype": {"EDM"}}.Encode()
 
@@ -281,7 +283,6 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// get result from response
 	var MetadataRes MetadataResponse
 	json.Unmarshal([]byte(response), &MetadataRes)
-
 
 	// decode results and save what needed
 	var filemetadata FileMetadata
@@ -299,9 +300,13 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 	// save metadata for correct jobIDs only
 	for pl := range payload {
 		for td := range taskdata {
-                        
-                        //logger.Printf("test: %s - %s", payload[pl].JobID, taskdata[td].JobID)
+
+			//logger.Printf("test: %s - %s", payload[pl].JobID, taskdata[td].JobID)
 			if payload[pl].JobID == taskdata[td].JobID {
+				taskdata[td].User = username
+				taskdata[td].UserDN = sitedbDN
+				taskdata[td].Destination = payload[0].Destination
+				taskdata[td].SourceLFN = payload[pl].SourceLfn
 				toPublish[pl] = taskdata[td]
 				//logger.Printf("JobID: %s \n", toPublish[pl].JobID)
 				break
@@ -309,86 +314,34 @@ func (myself *Server) Publish(args *RPCArgs, reply *int64) error {
 		}
 	}
 
-    var publishPayload []byte
+	var publishPayload []byte
 	// dump json content
-    //logger.Printf("test: %s", toPublish[0].Taskname)
+	//logger.Printf("test: %s", toPublish[0].Taskname)
 
-    if toPublish[0].Taskname != "" {
-        publishPayload, err = json.Marshal(toPublish)
-        if err != nil {
-	        *reply = 1 
-            logger.Printf("Error dumping metadata content: %s", err)
-            return err
-        }
-    } else {
-        logger.Print("No ready filemetadata yet")
-	    *reply = 1 
-        return nil
-    }
+	if toPublish[0].Taskname != "" {
+		publishPayload, err = json.Marshal(toPublish)
+		if err != nil {
+			*reply = 1
+			logger.Printf("Error dumping metadata content: %s", err)
+			return err
+		}
+	} else {
+		logger.Print("No ready filemetadata yet")
+		*reply = 1
+		return nil
+	}
 
-	// send to publisher serve
-        body_buf := bytes.NewBufferString("")
-        body_writer := multipart.NewWriter(body_buf)
-        //boundary := body_writer.Boundary()
-        content_type := body_writer.FormDataContentType()
+	err = ioutil.WriteFile("/tmp/"+payload[0].Taskname+".json", publishPayload, 0666)
+	if nil != err {
+		panic(err.Error())
+	}
 
-        body_writer.WriteField("DN", sitedbDN)
-        body_writer.WriteField("User", username)
-        body_writer.WriteField("Destination", payload[0].Destination)
-
-        filename := "foobar.json"
-        file_writer, err := body_writer.CreateFormFile("Payload", filename)
-        if nil != err {
-           panic(err.Error())
-        }
-        io.Copy(file_writer, bytes.NewBuffer(publishPayload))
-
-        body_writer.Close()
-        resp, err := http.Post("http://0.0.0.0:8888/dbspublish", content_type, body_buf)
+	logger.Printf("Executing: /bin/bash /data/user/MicroASO/microPublisher/python/publisher.sh %s", payload[0].Taskname)
+	out, err := exec.Command("/bin/bash", "/data/user/MicroASO/microPublisher/python/publisher.sh", payload[0].Taskname).Output()
 	if err != nil {
-		logger.Printf("Error contacting publisher server: %s", resp)
-		logger.Printf("Error contacting publisher server: %s", err)
-	    *reply = 1 
-		return err
+		log.Fatal(err)
 	}
-	defer resp.Body.Close()
-
-    if resp.StatusCode == 200 { // OK
-        bodyBytes, _ := ioutil.ReadAll(resp.Body)
-        body := string(bodyBytes)
-        logger.Printf("Payload published %s", string(body))
-    }else{
-	    *reply = int64(resp.StatusCode) 
-        bodyBytes, _ := ioutil.ReadAll(resp.Body)
-        body := string(bodyBytes)
-
-           logger.Printf("error %s", string(body))
-    }
-
-
-	/*******************************************************
-	type FileMetadata struct {
-		LFN         string                 `json:"lfn"`
-		Taskname    string                 `json:"taskname"`
-		GlobalTag   string                 `json:"globaltag"`
-		Parents     []string               `json:"parents"`
-		Size        int32                  `json:"filesize"`
-		Location    string                 `json:"location"`
-		RunLumi     map[string]interface{} `json:"runlumi"`
-		PublishName string                 `json:"publishname"`
-		OutDataset  string                 `json:"outdataset"`
-		SWVersion   string                 `json:"swversion"`
-		JobID       string                 `json:"jobid"`
-		INEvents    int32                  `json:"inevents"`
-        AcquisitionEra string              `json:"acquisitionera"` 
-        Cksum       string                 `json:"cksum"`
-        Adler32     string                 `json:"adler32"`
-        Md5         string                 `json:"md5"`
-	}
-	********************************************************/
-
-	logger.Printf("server query: %s \n", queryURL)
-	logger.Printf("server cache url: %s \n", urlCache)
+	logger.Printf("Publisher result %s\n", out)
 
 	return nil
 }
